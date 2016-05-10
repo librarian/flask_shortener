@@ -31,8 +31,8 @@ def shorten(url):
             return short_id
         url_num = master.incr('last-url-id')
         short_id = b62_encode(url_num)
-        slave.get('url-target:' + short_id, url)
-        slave.get('reverse-url:' + url, short_id)
+        master.set('url-target:' + short_id, url)
+        master.set('reverse-url:' + url, short_id)
         return short_id
 
 def b62_encode(number):
@@ -79,7 +79,6 @@ def shorten_details(short_id):
                         short_id=short_id, 
                         click_count=click_count,
                         link_target=link_target)
-
 
 http_server = HTTPServer(WSGIContainer(app))
 http_server.listen(APP_PORT)
