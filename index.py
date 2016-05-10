@@ -17,6 +17,7 @@ REDIS_SENTINELS=[ (host, REDIS_SENTINEL_PORT) for host in os.getenv('REDIS_SENTI
 REDIS_TIMEOUT=0.1
 
 APP_PORT=os.getenv('APP_PORT', '8080')
+APP_DOMAIN=os.getenv('APP_DOMAIN', '8080')
 
 sentinel = Sentinel(REDIS_SENTINELS, socket_timeout=REDIS_TIMEOUT, password=REDIS_PASSWORD)
 master = sentinel.master_for('master', socket_timeout=REDIS_TIMEOUT)
@@ -46,11 +47,11 @@ def b62_encode(number):
         base62.append(base[i])
     return ''.join(reversed(base62))
 
-@app.route('/')
+@app.route('/', method="GET")
 def home():
     return render_template('index.html')
 
-@app.route('/shorten', methods=['POST'])
+@app.route('/', method='POST')
 def return_shortened():
     url_to_parse = request.form['input-url']
     parts = urlparse.urlparse(url_to_parse)
@@ -59,7 +60,7 @@ def return_shortened():
     else:
         # with a valid url, shorten it using encode to 62
         short_id = shorten(url_to_parse)
-    return render_template('result.html', short_id=short_id)
+    return render_template('result.html', short_id=short_id, app_domain=APP_DOMAIN)
 
 @app.route("/<short_id>")
 def expand_to_long_url(short_id):
