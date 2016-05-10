@@ -17,7 +17,7 @@ REDIS_SENTINELS=[ (host, REDIS_SENTINEL_PORT) for host in os.getenv('REDIS_SENTI
 REDIS_TIMEOUT=0.1
 
 APP_PORT=os.getenv('APP_PORT', '8080')
-APP_DOMAIN=os.getenv('APP_DOMAIN', '8080')
+APP_DOMAIN=os.getenv('APP_DOMAIN', 'clck.libc6.org')
 
 sentinel = Sentinel(REDIS_SENTINELS, socket_timeout=REDIS_TIMEOUT, password=REDIS_PASSWORD)
 master = sentinel.master_for('master', socket_timeout=REDIS_TIMEOUT)
@@ -47,20 +47,19 @@ def b62_encode(number):
         base62.append(base[i])
     return ''.join(reversed(base62))
 
-@app.route('/', method="GET")
+@app.route('/', methods=["GET", "POST"])
 def home():
-    return render_template('index.html')
-
-@app.route('/', method='POST')
-def return_shortened():
-    url_to_parse = request.form['input-url']
-    parts = urlparse.urlparse(url_to_parse)
-    if not parts.scheme in ('http', 'https'):
-        error = "Please enter valid url"
-    else:
-        # with a valid url, shorten it using encode to 62
-        short_id = shorten(url_to_parse)
-    return render_template('result.html', short_id=short_id, app_domain=APP_DOMAIN)
+    if request.method == 'GET':
+        return render_template('index.html')
+    elif request.method == 'POST':
+        url_to_parse = request.form['input-url']
+        parts = urlparse.urlparse(url_to_parse)
+        if not parts.scheme in ('http', 'https'):
+            error = "Please enter valid url"
+        else:
+            # with a valid url, shorten it using encode to 62
+            short_id = shorten(url_to_parse)
+        return render_template('result.html', short_id=short_id, app_domain=APP_DOMAIN)
 
 @app.route("/<short_id>")
 def expand_to_long_url(short_id):
