@@ -31,8 +31,8 @@ def shorten(url):
             return short_id
         url_num = master.incr('last-url-id')
         short_id = b62_encode(url_num)
-        master.get('url-target:' + short_id, url)
-        master.get('reverse-url:' + url, short_id)
+        slave.get('url-target:' + short_id, url)
+        slave.get('reverse-url:' + url, short_id)
         return short_id
 
 def b62_encode(number):
