@@ -1,24 +1,38 @@
+from tornado.wsgi import WSGIContainer
+from tornado.httpserver import HTTPServer
+from tornado.ioloop import IOLoop
+
 from flask import Flask, render_template, send_file, send_from_directory, redirect, url_for, request
 import redis
+from redis.sentinel import Sentinel
 import urlparse
 import string
 import os
 from werkzeug.exceptions import HTTPException, NotFound
 from math import floor
 
+REDIS_PASSWORD=os.getenv('REDIS_PASSWORD', '')
+REDIS_SENTINEL_PORT=os.getenv('REDIS_SENTINEL_PORT', '')
+REDIS_SENTINELS=[ (host, REDIS_SENTINEL_PORT) for host in os.getenv('REDIS_SENTINELS', '').split(',') ]
+REDIS_TIMEOUT=0.1
+
+APP_PORT=os.getenv('APP_PORT', '8080')
+
+sentinel = Sentinel(REDIS_SENTINELS, socket_timeout=REDIS_TIMEOUT)
+master = sentinel.master_for('master', socket_timeout=REDIS_TIMEOUT)
+slave = sentinel.slave_for('master', socket_timeout=REDIS_TIMEOUT)
+
 app = Flask(__name__)
 app.debug = True
 
-redis = redis.Redis()
-
 def shorten(url):
-        short_id = redis.get('reverse-url:' + url)
+        short_id = slave.get('reverse-url:' + url)
         if short_id is not None:
             return short_id
-        url_num = redis.incr('last-url-id')
+        url_num = master.incr('last-url-id')
         short_id = b62_encode(url_num)
-        redis.set('url-target:' + short_id, url)
-        redis.set('reverse-url:' + url, short_id)
+        master.get('url-target:' + short_id, url)
+        master.get('reverse-url:' + url, short_id)
         return short_id
 
 def b62_encode(number):
@@ -49,22 +63,24 @@ def return_shortened():
 
 @app.route("/<short_id>")
 def expand_to_long_url(short_id):
-    link_target = redis.get('url-target:' + short_id)
+    link_target = slave.get('url-target:' + short_id)
     if link_target is None:
         raise NotFound()
-    redis.incr('click-count:' + short_id)
+    master.incr('click-count:' + short_id)
     return redirect(link_target)
 
 @app.route("/<short_id>+")
 def shorten_details(short_id):
-    link_target = redis.get('url-target:' + short_id)
+    link_target = slave.get('url-target:' + short_id)
     if link_target is None:
         raise NotFound()
-    click_count = int(redis.get('click-count:' + short_id) or 0)
+    click_count = int(slave.get('click-count:' + short_id) or 0)
     return render_template('details.html', 
                         short_id=short_id, 
                         click_count=click_count,
                         link_target=link_target)
 
-if __name__ == '__main__':
-    app.run()
+
+http_server = HTTPServer(WSGIContainer(app))
+http_server.listen(APP_PORT)
+IOLoop.instance().start()
