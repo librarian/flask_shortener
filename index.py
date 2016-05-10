@@ -66,19 +66,7 @@ def expand_to_long_url(short_id):
     link_target = slave.get('url-target:' + short_id)
     if link_target is None:
         raise NotFound()
-    master.incr('click-count:' + short_id)
     return redirect(link_target)
-
-@app.route("/<short_id>+")
-def shorten_details(short_id):
-    link_target = slave.get('url-target:' + short_id)
-    if link_target is None:
-        raise NotFound()
-    click_count = int(slave.get('click-count:' + short_id) or 0)
-    return render_template('details.html', 
-                        short_id=short_id, 
-                        click_count=click_count,
-                        link_target=link_target)
 
 http_server = HTTPServer(WSGIContainer(app))
 http_server.listen(APP_PORT)
