@@ -18,7 +18,7 @@ REDIS_TIMEOUT=0.1
 
 APP_PORT=os.getenv('APP_PORT', '8080')
 
-sentinel = Sentinel(REDIS_SENTINELS, socket_timeout=REDIS_TIMEOUT)
+sentinel = Sentinel(REDIS_SENTINELS, socket_timeout=REDIS_TIMEOUT, password=REDIS_PASSWORD)
 master = sentinel.master_for('master', socket_timeout=REDIS_TIMEOUT)
 slave = sentinel.slave_for('master', socket_timeout=REDIS_TIMEOUT)
 
